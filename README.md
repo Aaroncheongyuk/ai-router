@@ -38,6 +38,10 @@ Out of scope for P0:
 - `AGENTS.md` — compatibility shim for runtimes that prefer AGENTS.md
 - `docs/architecture.md` — repo boundaries and architecture
 - `docs/p0-plan.md` — P0 implementation target and acceptance criteria
+- `docs/system-gastown-init-and-fallback.md` — canonical current-state note for Gastown init, normalization, fallback, and real-project findings
+- `docs/gastown-integration.md` — practical Gastown initialization checklist and verification flow
+- `docs/gastown-init-stress-checklist.md` — reusable new-project simulation and pressure-test checklist
+- `docs/gastown-crew-fallback.md` — implemented-vs-designed fallback/restart boundary for persistent crews
 - `docs/roadmap.md` — phase roadmap after P0
 
 ## Initial repo policy
