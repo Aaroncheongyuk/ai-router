@@ -1,0 +1,10 @@
+{
+  "type": "town-settings",
+  "version": 1,
+  "default_agent": "claude-38",
+  "role_agents": {
+    "polecat": "claude-38",
+    "crew": "claude-38",
+    "witness": "claude-38"
+  }
+}

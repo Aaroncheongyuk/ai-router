@@ -1,0 +1,127 @@
+# Model configurations for ai-router
+# Maps model names to their providers and capabilities
+
+models:
+  # MiniMax models (primary for this deployment)
+  MiniMax-M2.5:
+    name: MiniMax-M2.5
+    provider: ep38
+    contextWindow: 200000
+    description: MiniMax MoE 2.5 (200K context, recommended primary)
+    capabilities:
+      - chat
+      - tools
+    wireModel: MiniMax-M2.5
+
+  MiniMax-M2:
+    name: MiniMax-M2
+    provider: ep38
+    contextWindow: 100000
+    description: MiniMax MoE 2.0 (100K context)
+    capabilities:
+      - chat
+      - tools
+    wireModel: MiniMax-M2
+
+  # GLM models (via EP38)
+  glm-5:
+    name: glm-5
+    provider: ep38
+    contextWindow: 200000
+    description: GLM-5 (200K context, strong reasoning)
+    capabilities:
+      - chat
+      - tools
+    wireModel: glm-5
+
+  glm-4.7:
+    name: glm-4.7
+    provider: ep38
+    contextWindow: 128000
+    description: GLM-4.7 (128K context)
+    capabilities:
+      - chat
+      - tools
+    wireModel: glm-4.7
+
+  glm-4:
+    name: glm-4
+    provider: ep38
+    contextWindow: 128000
+    description: GLM-4 (128K context)
+    capabilities:
+      - chat
+      - tools
+    wireModel: glm-4
+
+  # Anthropic models (expensive fallbacks)
+  claude-opus-4-5:
+    name: Claude Opus 4.5
+    provider: anthropic
+    contextWindow: 200000
+    description: Claude Opus 4.5 (expensive, use as deep fallback)
+    capabilities:
+      - chat
+      - tools
+    wireModel: claude-opus-4-5-20250514
+
+  claude-sonnet-4-5:
+    name: Claude Sonnet 4.5
+    provider: anthropic
+    contextWindow: 200000
+    description: Claude Sonnet 4.5 (balanced, expensive)
+    capabilities:
+      - chat
+      - tools
+    wireModel: claude-sonnet-4-5-20250514
+
+  claude-haiku-3-5:
+    name: Claude Haiku 3.5
+    provider: anthropic
+    contextWindow: 200000
+    description: Claude Haiku 3.5 (fast, expensive)
+    capabilities:
+      - chat
+      - tools
+    wireModel: claude-haiku-3-5-20250514
+
+  # OpenAI models (expensive fallbacks)
+  gpt-4o:
+    name: GPT-4o
+    provider: openai
+    contextWindow: 128000
+    description: GPT-4o (expensive, use as deep fallback)
+    capabilities:
+      - chat
+      - tools
+    wireModel: gpt-4o
+
+  gpt-4o-mini:
+    name: GPT-4o Mini
+    provider: openai
+    contextWindow: 128000
+    description: GPT-4o Mini (cheaper OpenAI option)
+    capabilities:
+      - chat
+      - tools
+    wireModel: gpt-4o-mini
+
+  # Local models (development only)
+  llama3:
+    name: Llama 3
+    provider: ollama
+    contextWindow: 8192
+    description: Llama 3 8B (local, limited context)
+    capabilities:
+      - chat
+    wireModel: llama3
+
+  qwen2.5:
+    name: Qwen 2.5
+    provider: ollama
+    contextWindow: 32768
+    description: Qwen 2.5 (local, reasonable context)
+    capabilities:
+      - chat
+      - tools
+    wireModel: qwen2.5

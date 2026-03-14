@@ -1,0 +1,9 @@
+{
+  "name": "ai-router",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shared AI routing layer for multi-agent developer workflows",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}

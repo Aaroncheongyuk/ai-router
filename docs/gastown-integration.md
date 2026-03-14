@@ -42,6 +42,8 @@ Example references:
 - Runtime must be derived from `AI_ROUTER_RUNTIME` or normalized from `GT_ROLE`.
 - Generic Gastown crew roles normalize to runtime `gastown` + role `crew`.
 - `ai_router/crew/<name>` keeps its subrole and resolves as `crew/<name>`.
+- if that ai_router subrole has no dedicated route, resolve must fall back to
+  the generic `crew` route before falling all the way to `default`.
 
 If these rules are wrong, Gastown launches still work, but route resolution silently falls back to the wrong route family.
 

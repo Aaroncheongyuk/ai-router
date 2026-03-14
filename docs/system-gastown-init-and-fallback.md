@@ -364,6 +364,12 @@ Current normalized role behavior:
 - `<rig>/crew/<name>` under runtime `gastown` -> `crew`
 - `ai_router/crew/<name>` under runtime `ai_router` -> `crew/<name>`
 
+Route matching note:
+- exact ai_router subrole routes win first, for example `crew/router_core`
+- if a preserved ai_router crew subrole has no dedicated route, resolve falls
+  back to parent role matching, so `crew/sop_watchdog` can inherit the generic
+  `crew` chain without losing runtime `ai_router`
+
 Why this split exists:
 - Gastown currently routes all generic crew sessions through one shared `crew`
   route.

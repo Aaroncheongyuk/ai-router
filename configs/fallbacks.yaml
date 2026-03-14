@@ -1,0 +1,51 @@
+# Fallback configuration for ai-router
+# Only Chinese models: GLM, MiniMax, Kimi, Qwen
+
+fallbacks:
+  # MiniMax fallbacks
+  MiniMax-M2.5:
+    - glm-5
+    - glm-4.7
+    - MiniMax-M2
+    - Kimi-K2.5
+
+  MiniMax-M2:
+    - MiniMax-M2.5
+    - glm-5
+    - glm-4.7
+    - Kimi-K2.5
+
+  # GLM fallbacks
+  glm-5:
+    - MiniMax-M2.5
+    - glm-4.7
+    - glm-4
+    - Kimi-K2.5
+
+  glm-4.7:
+    - MiniMax-M2.5
+    - glm-5
+    - glm-4
+    - Kimi-K2.5
+
+  glm-4:
+    - glm-4.7
+    - MiniMax-M2.5
+    - glm-5
+    - Kimi-K2.5
+
+  # Kimi fallbacks
+  Kimi-K2.5:
+    - Kimi-K2-Thinking
+    - glm-5
+    - MiniMax-M2.5
+
+  Kimi-K2-Thinking:
+    - Kimi-K2.5
+    - glm-5
+    - MiniMax-M2.5
+
+  # Qwen fallbacks
+  qwen2.5:
+    - glm-4.7
+    - MiniMax-M2.5

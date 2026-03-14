@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "agents": {
+    "claude-38": {
+      "name": "claude-38",
+      "command": "bash",
+      "args": ["/home/aaron/ai-projects/ai-router/wrappers/claude-38"],
+      "process_names": ["claude", "node", "bash"],
+      "prompt_mode": "arg",
+      "ready_delay_ms": 5000,
+      "instructions_file": "AGENTS.md",
+      "supports_hooks": true,
+      "hooks_provider": "claude",
+      "hooks_dir": ".claude",
+      "hooks_settings_file": "settings.json"
+    }
+  }
+}

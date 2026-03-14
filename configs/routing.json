@@ -1,0 +1,75 @@
+{
+  "routes": {
+    "gastown": {
+      "mayor": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Mayor uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "deacon": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Deacon uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "boot": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Boot uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "witness": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Witness uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "refinery": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Refinery uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "polecat": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Default polecat uses primary MiniMax chain",
+        "runtime": "gastown"
+      },
+      "crew": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Gastown crew sessions follow the central MiniMax-first fallback chain",
+        "runtime": "gastown"
+      }
+    },
+    "ai_router": {
+      "runtime": "ai_router",
+      "inherits": "gastown",
+      "crew/router_core": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Router core crew uses primary MiniMax chain",
+        "runtime": "ai_router"
+      },
+      "crew/runtime_recovery": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Runtime recovery crew uses primary MiniMax chain",
+        "runtime": "ai_router"
+      },
+      "crew/infra_sre": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Infra SRE crew uses primary MiniMax chain",
+        "runtime": "ai_router"
+      },
+      "witness": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Ai router witness uses primary MiniMax chain",
+        "runtime": "ai_router"
+      },
+      "refinery": {
+        "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+        "description": "Ai router refinery uses primary MiniMax chain",
+        "runtime": "ai_router"
+      }
+    },
+    "default": {
+      "modelChain": ["MiniMax-M2.5", "glm-5", "glm-4.7"],
+      "description": "Default route for unknown runtime/role",
+      "runtime": "gastown"
+    }
+  }
+}

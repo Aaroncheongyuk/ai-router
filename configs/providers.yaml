@@ -1,0 +1,45 @@
+# Provider configurations for ai-router
+# Maps provider names to their endpoints and authentication
+
+providers:
+  # EP38 (MiniMax/GLM endpoint at 38.146.29.81)
+  ep38:
+    name: EP38
+    type: openai-compatible
+    protocol: anthropic-messages
+    baseUrl: http://38.146.29.81:8000
+    apiKeyEnv: EP38_API_KEY
+    headers:
+      # No custom headers needed for EP38
+    description: EP38 provider serving MiniMax and GLM models via OpenAI-compatible API
+
+  # Direct Anthropic (for fallback / testing)
+  anthropic:
+    name: Anthropic
+    type: anthropic
+    protocol: anthropic-messages
+    baseUrl: https://api.anthropic.com
+    apiKeyEnv: ANTHROPIC_API_KEY
+    headers:
+     anthropic-version: "2023-06-01"
+    description: Official Anthropic API (expensive, use as deep fallback)
+
+  # OpenAI (for fallback / testing)
+  openai:
+    name: OpenAI
+    type: openai
+    protocol: openai
+    baseUrl: https://api.openai.com/v1
+    apiKeyEnv: OPENAI_API_KEY
+    headers: {}
+    description: OpenAI API (expensive, use as deep fallback)
+
+  # Local Ollama (for development)
+  ollama:
+    name: Ollama
+    type: openai-compatible
+    protocol: openai
+    baseUrl: http://localhost:11434/v1
+    apiKeyEnv: OLLAMA_API_KEY
+    headers: {}
+    description: Local Ollama server for development/testing

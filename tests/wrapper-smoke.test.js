@@ -115,6 +115,21 @@ test('wrapper preserves ai_router crew subrole when resolving route', () => {
   assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
 });
 
+test('wrapper falls back from ai_router watchdog subrole to central crew chain', () => {
+  const env = runWrapper({
+    GT_RIG: 'ai_router',
+    GT_ROLE: 'ai_router/crew/sop_watchdog',
+    EP38_API_KEY: 'dummy-key',
+    UNDERLYING_CLAUDE_BIN: 'env',
+  });
+
+  assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'ai_router');
+  assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew/sop_watchdog');
+  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
+});
+
 test('wrapper advances gastown crew after recoverable failure when fallback candidates exist', () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-router-crew-fallback-'));
   fs.mkdirSync(path.join(stateRoot, 'exit'), { recursive: true });
@@ -240,3 +255,25 @@ test('wrapper finds outermost town root from nested gastown crew worktree paths'
 
   assert.equal(env.AI_ROUTER_STATE_ROOT, path.join(townRoot, '.runtime', 'ai-router'));
 });
+
+test('wrapper advances ai_router watchdog subrole after recoverable failure on central crew chain', () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-router-watchdog-central-chain-'));
+  fs.mkdirSync(path.join(stateRoot, 'exit'), { recursive: true });
+  fs.writeFileSync(
+    path.join(stateRoot, 'exit', 'watchdog-central.json'),
+    JSON.stringify({ target_index: 0, exit_class: 'rate_limit' })
+  );
+
+  const env = runWrapper({
+    GT_SESSION: 'watchdog-central',
+    GT_ROLE: 'ai_router/crew/sop_watchdog',
+    AI_ROUTER_STATE_ROOT: stateRoot,
+    EP38_API_KEY: 'dummy-key',
+    UNDERLYING_CLAUDE_BIN: 'env',
+  });
+
+  assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '1');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
+  assert.equal(env.ANTHROPIC_MODEL, 'glm-5');
+});
+
