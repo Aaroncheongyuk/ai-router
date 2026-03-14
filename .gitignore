@@ -28,3 +28,8 @@ __pycache__/
 .tmp/
 logs/
 .beads/
+
+# Gas Town (added by gt)
+.claude/
+.logs/
+state.json
