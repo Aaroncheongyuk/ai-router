@@ -3,6 +3,14 @@
 
 routes:
   gastown:
+    default:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Default fallback for unknown gastown roles
+      runtime: gastown
+
     # Town-level roles stay on shared gastown runtime
     mayor:
       modelChain:
@@ -19,6 +27,15 @@ routes:
         - glm-4.7
       description: Deacon uses primary MiniMax chain
       runtime: gastown
+
+  coworker:
+    default:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Default fallback for unknown coworker roles
+      runtime: coworker
 
     boot:
       modelChain:
