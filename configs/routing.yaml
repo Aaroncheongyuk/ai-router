@@ -115,6 +115,9 @@ routes:
       description: Ai router refinery uses primary MiniMax chain
       runtime: ai_router
 
+  claude:
+    default: claude-sonnet-4-6
+
   # Default fallback for unknown roles
   default:
     modelChain:
