@@ -99,6 +99,14 @@ routes:
       description: Infra SRE crew uses primary MiniMax chain
       runtime: ai_router
 
+    crew/pi_adapter:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Pi adapter crew for P2 integration work
+      runtime: ai_router
+
     witness:
       modelChain:
         - MiniMax-M2.5
