@@ -1,0 +1,512 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# =============================================================================
+# ai-router wrapper for Pi Code Agent
+#
+# Responsibilities:
+# - Resolve runtime + role to provider/model/env
+# - Handle fallback candidate selection
+# - Export environment for Pi runtime
+# - Write launch/exit metadata for recovery
+# =============================================================================
+
+# Ensure standard local bin paths are available for gt/pi and hooks.
+export PATH="/home/aaron/.local/bin:/home/aaron/.bun/bin:${HOME}/go/bin:/home/aaron/.npm-global/bin:/tmp:${PATH}"
+UNDERLYING_PI_BIN="${UNDERLYING_PI_BIN:-pi}"
+
+# --- Dependency Pre-check (BUG-D fix) ---
+check_dependency() {
+  local cmd="$1"
+  local reason="$2"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "Error: Required dependency '$cmd' not found. $reason" >&2
+    exit 1
+  fi
+}
+
+check_dependency "node" "ai-router wrapper requires Node.js to run resolve CLI"
+check_dependency "$UNDERLYING_PI_BIN" "ai-router wrapper requires the configured runtime binary to be installed"
+if [ -n "${TMUX:-}${GT_SESSION:-}" ]; then
+  check_dependency "tmux" "tmux is required when running inside Gastown/tmux sessions"
+fi
+
+# --- Enhanced .env loading (BUG-E fix) ---
+# Parse .env safely and export values into the current shell.
+load_env_file() {
+  local env_file="$1"
+  local exports=""
+  if [ ! -f "$env_file" ]; then
+    return 1
+  fi
+
+  if ! head -20 "$env_file" | grep -q '='; then
+    return 1
+  fi
+
+  if command -v node >/dev/null 2>&1; then
+    exports="$(node - "$env_file" <<'NODE'
+const fs = require('fs');
+const envPath = process.argv[2];
+const content = fs.readFileSync(envPath, 'utf8');
+for (const rawLine of content.split(/\r?\n/)) {
+  const line = rawLine.trim();
+  if (!line || line.startsWith('#')) continue;
+  const match = rawLine.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+  if (!match) continue;
+  const key = match[1];
+  let value = match[2].trim();
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    value = value.slice(1, -1);
+  }
+  process.stdout.write(`export ${key}=${JSON.stringify(value)}\n`);
+}
+NODE
+)" || return 1
+    if [ -n "$exports" ]; then
+      eval "$exports"
+    fi
+    return 0
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  source "$env_file"
+  set +a
+  return 0
+}
+
+find_town_root() {
+  local dir="$1"
+  local found=""
+  while [ "$dir" != "/" ]; do
+    if [ -f "$dir/mayor/town.json" ]; then
+      found="$dir"
+    fi
+    dir="$(dirname "$dir")"
+  done
+  if [ -n "$found" ]; then
+    printf '%s\n' "$found"
+    return 0
+  fi
+  return 1
+}
+
+sanitize_session_key() {
+  printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'
+}
+
+capture_pane_tail() {
+  if [ -z "${TMUX:-}" ]; then
+    return 0
+  fi
+
+  local pane_target=""
+  pane_target="$(tmux display-message -p '#{pane_id}' 2>/dev/null || true)"
+  if [ -z "$pane_target" ] && [ -n "${GT_SESSION:-}" ]; then
+    pane_target="${GT_SESSION}"
+  fi
+  if [ -z "$pane_target" ]; then
+    return 0
+  fi
+
+  tmux capture-pane -pt "$pane_target" -S -120 2>/dev/null | tail -80 || true
+}
+
+classify_exit() {
+  local status="$1"
+  local pane_tail="$2"
+
+  if [ "$status" -eq 0 ]; then
+    printf 'clean_exit\n'
+    return 0
+  fi
+
+  if [ -z "${AI_ROUTER_SELECTED_MODEL:-}" ]; then
+    printf 'startup_error\n'
+    return 0
+  fi
+
+  if printf '%s' "$pane_tail" | grep -qiE '429|rate limit|too many requests|quota exceeded|overloaded'; then
+    printf 'rate_limit\n'
+    return 0
+  fi
+
+  if printf '%s' "$pane_tail" | grep -qiE 'provider unavailable|service unavailable|bad gateway|gateway timeout'; then
+    printf 'provider_recoverable\n'
+    return 0
+  fi
+
+  if printf '%s' "$pane_tail" | grep -qiE 'connection reset|connection refused|timed out|timeout|network error|transport error|socket hang up|ECONNRESET|ECONNREFUSED'; then
+    printf 'transport_recoverable\n'
+    return 0
+  fi
+
+  printf 'runtime_error\n'
+}
+
+write_launch_metadata() {
+  local destination="$1"
+  local tmp_file=""
+
+  mkdir -p "$(dirname "$destination")" 2>/dev/null || return 0
+  tmp_file="$(mktemp "${destination}.XXXXXX" 2>/dev/null || true)"
+  [ -z "$tmp_file" ] && return 0
+
+  if AI_ROUTER_METADATA_KIND="launch" node <<'NODE' >"$tmp_file"
+const toInt = (value, fallback) => {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const payload = {
+  version: 1,
+  kind: process.env.AI_ROUTER_METADATA_KIND,
+  run_id: process.env.AI_ROUTER_RUN_ID || '',
+  session_key: process.env.AI_ROUTER_SESSION_KEY || '',
+  session_name: process.env.GT_SESSION || '',
+  gt_session: process.env.GT_SESSION || '',
+  gt_role: process.env.GT_ROLE || '',
+  gt_rig: process.env.GT_RIG || '',
+  runtime: process.env.AI_ROUTER_RESOLVED_RUNTIME || '',
+  role: process.env.AI_ROUTER_RESOLVED_ROLE || '',
+  recovery_reason: process.env.AI_ROUTER_RECOVERY_REASON || '',
+  target_index: toInt(process.env.AI_ROUTER_SELECTED_TARGET_INDEX, 0),
+  candidate_count: Math.max(1, toInt(process.env.AI_ROUTER_CANDIDATE_COUNT, 1)),
+  selected_model: process.env.AI_ROUTER_SELECTED_MODEL || '',
+  selected_provider: process.env.AI_ROUTER_SELECTED_PROVIDER || '',
+  anthropic_model: process.env.ANTHROPIC_MODEL || '',
+  anthropic_base_url: process.env.ANTHROPIC_BASE_URL || '',
+  cwd: process.cwd(),
+  town_root: process.env.AI_ROUTER_TOWN_ROOT || '',
+  wrapper_pid: toInt(process.env.AI_ROUTER_WRAPPER_PID, 0),
+  started_at: process.env.AI_ROUTER_STARTED_AT || new Date().toISOString(),
+};
+process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+NODE
+  then
+    mv "$tmp_file" "$destination" 2>/dev/null || rm -f "$tmp_file"
+  else
+    rm -f "$tmp_file"
+  fi
+}
+
+write_exit_metadata() {
+  local destination="$1"
+  local exit_code="$2"
+  local pane_tail=""
+  local exit_class=""
+  local tmp_file=""
+
+  pane_tail="$(capture_pane_tail)"
+  exit_class="$(classify_exit "$exit_code" "$pane_tail")"
+
+  mkdir -p "$(dirname "$destination")" 2>/dev/null || return 0
+  tmp_file="$(mktemp "${destination}.XXXXXX" 2>/dev/null || true)"
+  [ -z "$tmp_file" ] && return 0
+
+  if AI_ROUTER_METADATA_KIND="exit" \
+    AI_ROUTER_EXIT_CODE="$exit_code" \
+    AI_ROUTER_EXIT_CLASS="$exit_class" \
+    AI_ROUTER_PANE_TAIL="$pane_tail" \
+    node <<'NODE' >"$tmp_file"
+const toInt = (value, fallback) => {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const payload = {
+  version: 1,
+  kind: process.env.AI_ROUTER_METADATA_KIND,
+  run_id: process.env.AI_ROUTER_RUN_ID || '',
+  session_key: process.env.AI_ROUTER_SESSION_KEY || '',
+  session_name: process.env.GT_SESSION || '',
+  gt_session: process.env.GT_SESSION || '',
+  gt_role: process.env.GT_ROLE || '',
+  gt_rig: process.env.GT_RIG || '',
+  runtime: process.env.AI_ROUTER_RESOLVED_RUNTIME || '',
+  role: process.env.AI_ROUTER_RESOLVED_ROLE || '',
+  recovery_reason: process.env.AI_ROUTER_RECOVERY_REASON || '',
+  target_index: toInt(process.env.AI_ROUTER_SELECTED_TARGET_INDEX, 0),
+  candidate_count: Math.max(1, toInt(process.env.AI_ROUTER_CANDIDATE_COUNT, 1)),
+  selected_model: process.env.AI_ROUTER_SELECTED_MODEL || '',
+  selected_provider: process.env.AI_ROUTER_SELECTED_PROVIDER || '',
+  cwd: process.cwd(),
+  town_root: process.env.AI_ROUTER_TOWN_ROOT || '',
+  wrapper_pid: toInt(process.env.AI_ROUTER_WRAPPER_PID, 0),
+  started_at: process.env.AI_ROUTER_STARTED_AT || '',
+  exited_at: new Date().toISOString(),
+  exit_code: toInt(process.env.AI_ROUTER_EXIT_CODE, 1),
+  exit_class: process.env.AI_ROUTER_EXIT_CLASS || 'runtime_error',
+  pane_tail: process.env.AI_ROUTER_PANE_TAIL || '',
+};
+process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+NODE
+  then
+    mv "$tmp_file" "$destination" 2>/dev/null || rm -f "$tmp_file"
+  else
+    rm -f "$tmp_file"
+  fi
+}
+
+AI_ROUTER_TOWN_ROOT="${AI_ROUTER_TOWN_ROOT:-${GT_TOWN_ROOT:-${GT_ROOT:-}}}"
+if [ -z "$AI_ROUTER_TOWN_ROOT" ]; then
+  AI_ROUTER_TOWN_ROOT="$(find_town_root "$(pwd)" 2>/dev/null || true)"
+fi
+export AI_ROUTER_TOWN_ROOT
+
+AI_ROUTER_SESSION_KEY_RAW="${GT_SESSION:-${TMUX_PANE:-session-$$}}"
+AI_ROUTER_SESSION_KEY="$(sanitize_session_key "$AI_ROUTER_SESSION_KEY_RAW")"
+AI_ROUTER_STATE_ROOT="${AI_ROUTER_STATE_ROOT:-${AI_ROUTER_TOWN_ROOT:-$(pwd)}/.runtime/ai-router}"
+AI_ROUTER_LAUNCH_FILE="${AI_ROUTER_STATE_ROOT}/launch/${AI_ROUTER_SESSION_KEY}.json"
+AI_ROUTER_EXIT_FILE="${AI_ROUTER_STATE_ROOT}/exit/${AI_ROUTER_SESSION_KEY}.json"
+AI_ROUTER_RUN_ID="${AI_ROUTER_RUN_ID:-${AI_ROUTER_SESSION_KEY}-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+AI_ROUTER_WRAPPER_PID="$$"
+AI_ROUTER_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export AI_ROUTER_SESSION_KEY AI_ROUTER_STATE_ROOT AI_ROUTER_EXIT_FILE AI_ROUTER_RUN_ID AI_ROUTER_WRAPPER_PID AI_ROUTER_STARTED_AT
+export AI_ROUTER_TARGET_INDEX AI_ROUTER_RECOVERY_REASON
+
+trap 'status=$?; write_exit_metadata "$AI_ROUTER_EXIT_FILE" "$status" || true' EXIT
+
+# Load project .env safely (BUG-E fix: use safer parsing)
+if [ -z "${EP38_API_KEY:-}" ]; then
+  _dir="$(pwd)"
+  while [ "$_dir" != "/" ]; do
+    if [ -f "$_dir/.env" ]; then
+      load_env_file "$_dir/.env"
+      break
+    fi
+    _dir="$(dirname "$_dir")"
+  done
+fi
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Prefer explicit runtime, then normalize Gastown identity from GT_ROLE.
+# Generic Gastown rigs resolve to the shared gastown runtime, while ai_router
+# keeps its dedicated runtime namespace.
+if [ -n "${AI_ROUTER_RUNTIME:-}" ]; then
+  RUNTIME="${AI_ROUTER_RUNTIME}"
+elif [ -n "${GT_ROLE:-}" ]; then
+  case "${GT_ROLE}" in
+    ai_router/*)
+      RUNTIME="ai_router"
+      ;;
+    mayor|deacon|boot|deacon/boot|*/witness|*/refinery|*/crew|*/crew/*|*/polecats|*/polecats/*)
+      RUNTIME="gastown"
+      ;;
+    *)
+      if [ "${GT_RIG:-}" = "ai_router" ]; then
+        RUNTIME="ai_router"
+      else
+        RUNTIME="gastown"
+      fi
+      ;;
+  esac
+elif [ "${GT_RIG:-}" = "ai_router" ]; then
+  RUNTIME="ai_router"
+else
+  RUNTIME="gastown"
+fi
+
+ROLE="$(GT_ROLE="${GT_ROLE:-}" AI_ROUTER_ROLE="${AI_ROUTER_ROLE:-}" RUNTIME="$RUNTIME" node <<'NODE'
+const explicitRole = process.env.AI_ROUTER_ROLE?.trim();
+const gtRole = process.env.GT_ROLE?.trim() ?? '';
+const runtime = process.env.RUNTIME?.trim() ?? '';
+if (explicitRole) {
+  process.stdout.write(`${explicitRole}\n`);
+  process.exit(0);
+}
+if (!gtRole) {
+  process.stdout.write('polecat\n');
+  process.exit(0);
+}
+const parts = gtRole.split('/').filter(Boolean);
+let normalizedRole = gtRole;
+switch (parts.length) {
+  case 1:
+    normalizedRole = parts[0];
+    break;
+  case 2:
+    normalizedRole = parts[0] === 'deacon' && parts[1] === 'boot' ? 'boot' : parts[1];
+    break;
+  default:
+    if (parts[1] === 'polecats') {
+      normalizedRole = 'polecat';
+    } else if (parts[1] === 'crew') {
+      normalizedRole = runtime === 'ai_router' ? `crew/${parts.slice(2).join('/')}` : 'crew';
+    } else {
+      normalizedRole = parts[1];
+    }
+    break;
+}
+process.stdout.write(`${normalizedRole}\n`);
+NODE
+)"
+
+RESOLVED_JSON="$(node "$ROOT_DIR/src/cli.js" resolve --runtime "$RUNTIME" --role "$ROLE")"
+
+ENV_EXPORTS="$(RESOLVED_JSON="$RESOLVED_JSON" ROLE="$ROLE" GT_ROLE_RAW="${GT_ROLE:-}" node <<'NODE'
+const resolved = JSON.parse(process.env.RESOLVED_JSON);
+const candidates = [
+  {
+    provider: resolved.provider,
+    protocol: resolved.protocol,
+    baseUrl: resolved.baseUrl,
+    model: resolved.model,
+    wireModel: resolved.wireModel,
+    auth: resolved.auth,
+    headers: resolved.headers,
+    runtimeEnv: resolved.runtimeEnv || [],
+  },
+  ...(resolved.resolvedFallbacks || []),
+];
+const normalizeSelector = (value) => String(value ?? '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+const candidateMatchesRequestedModel = (candidate, requestedModel) => {
+  const requestedNormalized = normalizeSelector(requestedModel);
+  return [candidate.model, candidate.wireModel]
+    .filter(Boolean)
+    .some((value) => value === requestedModel || normalizeSelector(value) === requestedNormalized);
+};
+const requestedModel = process.env.AI_ROUTER_TARGET_MODEL;
+let requestedIndexRaw = process.env.AI_ROUTER_TARGET_INDEX;
+
+if ((!requestedIndexRaw || requestedIndexRaw === '') && !requestedModel) {
+  const exitPath = process.env.AI_ROUTER_EXIT_FILE;
+  if (exitPath) {
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(exitPath)) {
+        const exitData = JSON.parse(fs.readFileSync(exitPath, 'utf8'));
+        const parsedPrevIndex = Number.parseInt(String(exitData.target_index ?? '0'), 10);
+        const prevIndex = Number.isInteger(parsedPrevIndex) && parsedPrevIndex >= 0 ? parsedPrevIndex : 0;
+        const exitClass = String(exitData.exit_class || '');
+        const recoverableClasses = [
+          'rate_limit',
+          'provider_recoverable',
+          'transport_recoverable',
+          'context_window_recoverable',
+          'runtime_error',
+        ];
+        requestedIndexRaw = String(recoverableClasses.includes(exitClass) ? prevIndex + 1 : prevIndex);
+      }
+    } catch {}
+  }
+}
+
+if (!requestedIndexRaw || requestedIndexRaw === '') {
+  requestedIndexRaw = '0';
+}
+let target = null;
+let selectedIndex = 0;
+if (requestedModel) {
+  selectedIndex = candidates.findIndex((candidate) => candidateMatchesRequestedModel(candidate, requestedModel));
+  if (selectedIndex === -1) {
+    const availableSelectors = candidates
+      .flatMap((candidate) => [candidate.model, candidate.wireModel, normalizeSelector(candidate.model), normalizeSelector(candidate.wireModel)])
+      .filter(Boolean);
+    console.error(`Requested model not found in route candidates: ${requestedModel}. Available selectors: ${Array.from(new Set(availableSelectors)).join(', ')}`);
+    process.exit(1);
+  }
+  target = candidates[selectedIndex];
+} else {
+  const requestedIndex = Number.parseInt(requestedIndexRaw, 10);
+  if (!Number.isInteger(requestedIndex) || requestedIndex < 0) {
+    console.error(`Invalid AI_ROUTER_TARGET_INDEX: ${requestedIndexRaw}`);
+    process.exit(1);
+  }
+  selectedIndex = requestedIndex >= candidates.length ? candidates.length - 1 : requestedIndex;
+  target = candidates[selectedIndex];
+}
+if (process.env.AI_ROUTER_DEBUG === '1') {
+  console.error(`[ai-router] gtRole=${process.env.GT_ROLE_RAW || '-'} normalizedRole=${process.env.ROLE || resolved.role} runtime=${resolved.runtime} selectedModel=${target.model} provider=${target.provider}`);
+}
+console.log(`export AI_ROUTER_SELECTED_MODEL=${JSON.stringify(target.model)}`);
+console.log(`export AI_ROUTER_SELECTED_PROVIDER=${JSON.stringify(target.provider)}`);
+console.log(`export AI_ROUTER_SELECTED_TARGET_INDEX=${JSON.stringify(String(selectedIndex))}`);
+console.log(`export AI_ROUTER_CANDIDATE_COUNT=${JSON.stringify(String(candidates.length))}`);
+for (const entry of target.runtimeEnv || []) {
+  if (entry.source?.type === 'literal') {
+    console.log(`export ${entry.name}=${JSON.stringify(entry.source.value)}`);
+    continue;
+  }
+  if (entry.source?.type === 'env') {
+    let value = process.env[entry.source.env];
+    if (!value && entry.source.env === 'EP38_API_KEY') {
+      value = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
+    }
+    if (!value) {
+      const fs = require('fs');
+      const path = require('path');
+      let projectRoot = process.env.GT_PROJECT_ROOT;
+      if (!projectRoot) {
+        let dir = process.cwd();
+        while (dir !== '/') {
+          if (fs.existsSync(path.join(dir, '.env'))) {
+            projectRoot = dir;
+            break;
+          }
+          dir = path.dirname(dir);
+        }
+      }
+      if (projectRoot) {
+        const envPath = path.join(projectRoot, '.env');
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, 'utf8');
+          const match = envContent.match(new RegExp(`^${entry.source.env}=(.*)$`, 'm'));
+          if (match) {
+            value = match[1].trim().replace(/^['"]|['"]$/g, '');
+          }
+        }
+      }
+    }
+    if (!value) {
+      console.error(`Missing required source env: ${entry.source.env}`);
+      process.exit(1);
+    }
+    console.log(`export ${entry.name}=${JSON.stringify(value)}`);
+  }
+}
+NODE
+)"
+
+# Prevent nested Pi crashes and stale inherited Anthropic vars.
+unset CLAUDECODE ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL ANTHROPIC_MODEL
+
+eval "$ENV_EXPORTS"
+
+export AI_ROUTER_RESOLVED_RUNTIME="$RUNTIME"
+export AI_ROUTER_RESOLVED_ROLE="$ROLE"
+
+write_launch_metadata "$AI_ROUTER_LAUNCH_FILE" || true
+
+# Build pi command with routing parameters
+PI_ARGS=()
+
+# Add model if resolved
+if [ -n "${AI_ROUTER_SELECTED_MODEL:-}" ]; then
+  PI_ARGS+=("--model" "$AI_ROUTER_SELECTED_MODEL")
+fi
+
+# Add provider-specific options
+if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
+  # Pi uses --provider but we need to map the base URL to a provider
+  # For now, we'll pass the model which should work with most providers
+  :
+fi
+
+# Add API key if available
+if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  PI_ARGS+=("--api-key" "$ANTHROPIC_API_KEY")
+fi
+
+# Pass through remaining arguments
+PI_ARGS+=("$@")
+
+set +e
+"$UNDERLYING_PI_BIN" "${PI_ARGS[@]}"
+pi_status=$?
+set -e
+exit $pi_status
