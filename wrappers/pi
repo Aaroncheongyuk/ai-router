@@ -482,31 +482,8 @@ export AI_ROUTER_RESOLVED_ROLE="$ROLE"
 
 write_launch_metadata "$AI_ROUTER_LAUNCH_FILE" || true
 
-# Build pi command with routing parameters
-PI_ARGS=()
-
-# Add model if resolved
-if [ -n "${AI_ROUTER_SELECTED_MODEL:-}" ]; then
-  PI_ARGS+=("--model" "$AI_ROUTER_SELECTED_MODEL")
-fi
-
-# Add provider-specific options
-if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
-  # Pi uses --provider but we need to map the base URL to a provider
-  # For now, we'll pass the model which should work with most providers
-  :
-fi
-
-# Add API key if available
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-  PI_ARGS+=("--api-key" "$ANTHROPIC_API_KEY")
-fi
-
-# Pass through remaining arguments
-PI_ARGS+=("$@")
-
 set +e
-"$UNDERLYING_PI_BIN" "${PI_ARGS[@]}"
+"$UNDERLYING_PI_BIN" "$@"
 pi_status=$?
 set -e
 exit $pi_status
