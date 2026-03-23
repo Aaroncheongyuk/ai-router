@@ -69,6 +69,124 @@ routes:
       description: Default polecat uses primary MiniMax chain
       runtime: gastown
 
+    # Explicit crew role routes for coworker rig (P0 enforcement)
+    crew/coworker:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Coworker crew coordination
+      runtime: coworker
+
+    crew/coordinator:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Coordinator for async ChatBox repair
+      runtime: coworker
+
+    crew/backend:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Backend implementation crew
+      runtime: coworker
+
+    crew/frontend:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Frontend implementation crew
+      runtime: coworker
+
+    crew/orchestrator_core:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Orchestrator core crew (runtime/scheduler)
+      runtime: coworker
+
+    crew/web_console:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Web console UI crew
+      runtime: coworker
+
+    crew/harness:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Harness/E2E test crew
+      runtime: coworker
+
+    crew/integration:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Integration testing crew
+      runtime: coworker
+
+    crew/sandbox_schema:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+      description: Schema validation crew
+      runtime: coworker
+
+  # Quant strategy research rig
+  quant:
+    runtime: quant
+    inherits: gastown
+
+    crew/scout:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+      description: Scout researches strategy variants, GitHub, papers
+      runtime: quant
+
+    crew/builder:
+      modelChain:
+        - glm-5
+        - MiniMax-M2.5
+        - glm-4.7
+      description: Builder implements strategy code and tests
+      runtime: quant
+
+    crew/tester:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+      description: Tester runs backtests and evaluates variants
+      runtime: quant
+
+    witness:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Quant witness for polecat lifecycle
+      runtime: quant
+
+    refinery:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Quant refinery for merge queue
+      runtime: quant
+
   # Rig-specific routes (inherited from gastown runtime)
   ai_router:
     runtime: ai_router
@@ -121,6 +239,15 @@ routes:
         - glm-5
         - glm-4.7
       description: Ai router refinery uses primary MiniMax chain
+      runtime: ai_router
+
+    # Monitoring roles (L1-L5 crew)
+    monitor:
+      modelChain:
+        - MiniMax-M2.5
+        - glm-5
+        - glm-4.7
+      description: Monitor role for five-layer monitoring architecture
       runtime: ai_router
 
   claude:
