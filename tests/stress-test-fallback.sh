@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 # Test models from the fallback chain
 MODELS=(
-  "ep38-kimi:MiniMax-M2.5:MiniMax-M2.5"
+  "ep38-kimi:MiniMax-M2.7:MiniMax-M2.7"
   "ep38:gpt-5.4:gpt-5.4"
   "ep38:gpt-5:gpt-5"
   "ep38-glm:glm-5:glm-5"

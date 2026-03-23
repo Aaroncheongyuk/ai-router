@@ -55,12 +55,12 @@ test('wrapper exports resolved anthropic-compatible env', () => {
     AI_ROUTER_DEBUG: '1',
   });
 
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
   assert.equal(env.AI_ROUTER_SELECTED_PROVIDER, 'ep38');
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '0');
   assert.equal(env.ANTHROPIC_API_KEY, 'dummy-key');
   assert.equal(env.ANTHROPIC_BASE_URL, 'http://38.146.29.81:8000');
-  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.7');
 });
 
 test('wrapper increments target index after recoverable failure', () => {
@@ -116,7 +116,7 @@ test('wrapper maps real gastown rig env to gastown runtime routes', () => {
   assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'gastown');
   assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew');
   assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
 });
 
 test('wrapper preserves ai_router crew subrole when resolving route', () => {
@@ -130,7 +130,7 @@ test('wrapper preserves ai_router crew subrole when resolving route', () => {
   assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'ai_router');
   assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew/router_core');
   assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
 });
 
 test('wrapper advances gastown crew after recoverable failure when fallback candidates exist', () => {
@@ -190,15 +190,15 @@ test('explicit target-model pin overrides auto-recovery fallback selection', () 
     GT_SESSION: 'pinned-model',
     GT_ROLE: 'sora_hk_sdwan/crew/simulation_harness',
     AI_ROUTER_RUNTIME: 'gastown',
-    AI_ROUTER_TARGET_MODEL: 'MiniMax-M2.5',
+    AI_ROUTER_TARGET_MODEL: 'MiniMax-M2.7',
     AI_ROUTER_STATE_ROOT: stateRoot,
     EP38_API_KEY: 'dummy-key',
     UNDERLYING_CLAUDE_BIN: 'env',
   });
 
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '0');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
-  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.7');
   assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
 });
 
@@ -235,7 +235,7 @@ test('wrapper loads quoted EP38_API_KEY from local .env', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const env = parseEnvOutput(result.stdout);
   assert.equal(env.ANTHROPIC_API_KEY, 'quoted-secret');
-  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.7');
 });
 
 test('wrapper preserves injected AI_ROUTER_TOWN_ROOT for gastown crew metadata pathing', () => {

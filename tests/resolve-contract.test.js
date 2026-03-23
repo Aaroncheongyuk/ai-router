@@ -20,7 +20,7 @@ test('resolve returns gastown polecat primary route', () => {
   assert.equal(resolved.runtime, 'gastown');
   assert.equal(resolved.role, 'polecat');
   assert.equal(resolved.provider, 'ep38');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
   assert.deepEqual(
     resolved.runtimeEnv.map((entry) => entry.name),
@@ -34,8 +34,27 @@ test('resolve returns gastown crew fallback chain from central route', () => {
   assert.equal(resolved.runtime, 'gastown');
   assert.equal(resolved.role, 'crew');
   assert.equal(resolved.provider, 'ep38');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.equal(resolved.source.route, 'configs/routing.json#routes.gastown.crew');
+  assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
+});
+
+test('resolve returns quant scout route', () => {
+  const resolved = runResolve('quant', 'crew/scout');
+  assert.equal(resolved.runtime, 'quant');
+  assert.equal(resolved.role, 'crew/scout');
+  assert.equal(resolved.model, 'glm-4.7');
+  assert.equal(resolved.source.route, 'configs/routing.json#routes.quant.crew/scout');
+  assert.deepEqual(resolved.fallbacks, ['glm-5', 'MiniMax-M2.7']);
+});
+
+test('resolve falls back from unknown quant crew subrole to inherited gastown crew chain', () => {
+  const resolved = runResolve('quant', 'crew/sop_watchdog');
+  assert.equal(resolved.runtime, 'quant');
+  assert.equal(resolved.role, 'crew/sop_watchdog');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
+  assert.equal(resolved.source.route, 'configs/routing.json#routes.gastown.crew');
+  assert.equal(resolved.source.inheritedFrom, 'configs/routing.json#routes.quant.inherits');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
 });
 
@@ -43,7 +62,7 @@ test('resolve returns ai_router crew route', () => {
   const resolved = runResolve('ai_router', 'crew/router_core');
   assert.equal(resolved.runtime, 'ai_router');
   assert.equal(resolved.role, 'crew/router_core');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.equal(resolved.source.route, 'configs/routing.json#routes.ai_router.crew/router_core');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
 });
@@ -52,7 +71,7 @@ test('resolve inherits gastown polecat route into ai_router runtime', () => {
   const resolved = runResolve('ai_router', 'polecat');
   assert.equal(resolved.runtime, 'ai_router');
   assert.equal(resolved.role, 'polecat');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.equal(resolved.source.route, 'configs/routing.json#routes.gastown.polecat');
   assert.equal(resolved.source.inheritedFrom, 'configs/routing.json#routes.ai_router.inherits');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
@@ -62,7 +81,7 @@ test('resolve inherits gastown crew fallback chain into ai_router generic crew',
   const resolved = runResolve('ai_router', 'crew');
   assert.equal(resolved.runtime, 'ai_router');
   assert.equal(resolved.role, 'crew');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.equal(resolved.source.route, 'configs/routing.json#routes.gastown.crew');
   assert.equal(resolved.source.inheritedFrom, 'configs/routing.json#routes.ai_router.inherits');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);
@@ -72,7 +91,7 @@ test('resolve falls back from ai_router crew subrole to inherited generic crew r
   const resolved = runResolve('ai_router', 'crew/sop_watchdog');
   assert.equal(resolved.runtime, 'ai_router');
   assert.equal(resolved.role, 'crew/sop_watchdog');
-  assert.equal(resolved.model, 'MiniMax-M2.5');
+  assert.equal(resolved.model, 'MiniMax-M2.7');
   assert.equal(resolved.source.route, 'configs/routing.json#routes.gastown.crew');
   assert.equal(resolved.source.inheritedFrom, 'configs/routing.json#routes.ai_router.inherits');
   assert.deepEqual(resolved.fallbacks, ['glm-5', 'glm-4.7']);

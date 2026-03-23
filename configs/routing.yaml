@@ -5,7 +5,7 @@ routes:
   gastown:
     default:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Default fallback for unknown gastown roles
@@ -14,7 +14,7 @@ routes:
     # Town-level roles stay on shared gastown runtime
     mayor:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Mayor uses primary MiniMax chain
@@ -22,7 +22,7 @@ routes:
 
     deacon:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Deacon uses primary MiniMax chain
@@ -31,7 +31,7 @@ routes:
   coworker:
     default:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Default fallback for unknown coworker roles
@@ -39,7 +39,7 @@ routes:
 
     boot:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Boot uses primary MiniMax chain
@@ -47,7 +47,7 @@ routes:
 
     witness:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Witness uses primary MiniMax chain
@@ -55,7 +55,7 @@ routes:
 
     refinery:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Refinery uses primary MiniMax chain
@@ -63,7 +63,7 @@ routes:
 
     polecat:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Default polecat uses primary MiniMax chain
@@ -72,7 +72,7 @@ routes:
     # Explicit crew role routes for coworker rig (P0 enforcement)
     crew/coworker:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Coworker crew coordination
@@ -80,7 +80,7 @@ routes:
 
     crew/coordinator:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Coordinator for async ChatBox repair
@@ -89,7 +89,7 @@ routes:
     crew/backend:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Backend implementation crew
       runtime: coworker
@@ -97,7 +97,7 @@ routes:
     crew/frontend:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Frontend implementation crew
       runtime: coworker
@@ -105,7 +105,7 @@ routes:
     crew/orchestrator_core:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Orchestrator core crew (runtime/scheduler)
       runtime: coworker
@@ -113,7 +113,7 @@ routes:
     crew/web_console:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Web console UI crew
       runtime: coworker
@@ -121,7 +121,7 @@ routes:
     crew/harness:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Harness/E2E test crew
       runtime: coworker
@@ -129,7 +129,7 @@ routes:
     crew/integration:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Integration testing crew
       runtime: coworker
@@ -138,7 +138,7 @@ routes:
       modelChain:
         - glm-4.7
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
       description: Schema validation crew
       runtime: coworker
 
@@ -151,14 +151,14 @@ routes:
       modelChain:
         - glm-4.7
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
       description: Scout researches strategy variants, GitHub, papers
       runtime: quant
 
     crew/builder:
       modelChain:
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-4.7
       description: Builder implements strategy code and tests
       runtime: quant
@@ -167,13 +167,13 @@ routes:
       modelChain:
         - glm-4.7
         - glm-5
-        - MiniMax-M2.5
+        - MiniMax-M2.7
       description: Tester runs backtests and evaluates variants
       runtime: quant
 
     witness:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Quant witness for polecat lifecycle
@@ -181,7 +181,7 @@ routes:
 
     refinery:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Quant refinery for merge queue
@@ -195,7 +195,7 @@ routes:
     # Crew roles in ai_router rig
     crew/router_core:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Router core crew uses primary MiniMax chain
@@ -203,7 +203,7 @@ routes:
 
     crew/runtime_recovery:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Runtime recovery crew uses primary MiniMax chain
@@ -211,7 +211,7 @@ routes:
 
     crew/infra_sre:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Infra SRE crew uses primary MiniMax chain
@@ -219,7 +219,7 @@ routes:
 
     crew/pi_adapter:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Pi adapter crew for P2 integration work
@@ -227,7 +227,7 @@ routes:
 
     witness:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Ai router witness uses primary MiniMax chain
@@ -235,7 +235,7 @@ routes:
 
     refinery:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Ai router refinery uses primary MiniMax chain
@@ -244,7 +244,7 @@ routes:
     # Monitoring roles (L1-L5 crew)
     monitor:
       modelChain:
-        - MiniMax-M2.5
+        - MiniMax-M2.7
         - glm-5
         - glm-4.7
       description: Monitor role for five-layer monitoring architecture
@@ -256,7 +256,7 @@ routes:
   # Default fallback for unknown roles
   default:
     modelChain:
-      - MiniMax-M2.5
+      - MiniMax-M2.7
       - glm-5
       - glm-4.7
     description: Default route for unknown runtime/role

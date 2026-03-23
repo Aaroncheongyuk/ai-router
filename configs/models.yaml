@@ -3,15 +3,15 @@
 
 models:
   # MiniMax models (primary for this deployment)
-  MiniMax-M2.5:
-    name: MiniMax-M2.5
+  MiniMax-M2.7:
+    name: MiniMax-M2.7
     provider: ep38
     contextWindow: 200000
-    description: MiniMax MoE 2.5 (200K context, recommended primary)
+    description: MiniMax MoE 2.7 (200K context, recommended primary)
     capabilities:
       - chat
       - tools
-    wireModel: MiniMax-M2.5
+    wireModel: MiniMax-M2.7
 
   MiniMax-M2:
     name: MiniMax-M2
@@ -44,6 +44,15 @@ models:
       - tools
     wireModel: glm-4.7
 
+  glm-4.7-flash:
+    name: glm-4.7-flash
+    provider: ep38
+    contextWindow: 128000
+    description: GLM-4.7-flash (128K context, 4K output, Tier 4 cheapest)
+    capabilities:
+      - chat
+    wireModel: glm-4.7-flash
+
   glm-4:
     name: glm-4
     provider: ep38
@@ -54,26 +63,26 @@ models:
       - tools
     wireModel: glm-4
 
-  # Anthropic models (expensive fallbacks)
+  # Anthropic models via EP38
   claude-opus-4-5:
     name: Claude Opus 4.5
-    provider: anthropic
+    provider: ep38
     contextWindow: 200000
-    description: Claude Opus 4.5 (expensive, use as deep fallback)
+    description: Claude Opus 4.5 via EP38 (Tier 1)
     capabilities:
       - chat
       - tools
-    wireModel: claude-opus-4-5-20250514
+    wireModel: claude-opus-4-5-20251101
 
   claude-sonnet-4-5:
     name: Claude Sonnet 4.5
-    provider: anthropic
+    provider: ep38
     contextWindow: 200000
-    description: Claude Sonnet 4.5 (balanced, expensive)
+    description: Claude Sonnet 4.5 via EP38 (Tier 2)
     capabilities:
       - chat
       - tools
-    wireModel: claude-sonnet-4-5-20250514
+    wireModel: claude-sonnet-4-5-20250929
 
   claude-haiku-3-5:
     name: Claude Haiku 3.5
@@ -85,7 +94,27 @@ models:
       - tools
     wireModel: claude-haiku-3-5-20250514
 
-  # OpenAI models (expensive fallbacks)
+  # OpenAI models via EP38
+  gpt-5.4:
+    name: GPT-5.4
+    provider: ep38
+    contextWindow: 200000
+    description: GPT-5.4 (Tier 1 flagship, thinking)
+    capabilities:
+      - chat
+      - tools
+    wireModel: gpt-5.4
+
+  gpt-5:
+    name: GPT-5
+    provider: ep38
+    contextWindow: 200000
+    description: GPT-5 (Tier 2, thinking)
+    capabilities:
+      - chat
+      - tools
+    wireModel: gpt-5
+
   gpt-4o:
     name: GPT-4o
     provider: openai
