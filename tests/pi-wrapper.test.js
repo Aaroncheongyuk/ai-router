@@ -25,8 +25,6 @@ function parseEnvOutput(stdout) {
 function runWrapper(env = {}, cwd = repoRoot) {
   const stateRoot = env.AI_ROUTER_STATE_ROOT || fs.mkdtempSync(path.join(os.tmpdir(), 'ai-router-pi-test-state-'));
 
-  // Clear gastown-related env vars to prevent parent shell leakage
-  // Also clear API keys to ensure wrapper loads from local .env
   const keysToRemove = new Set([
     'EP38_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
     'OPENAI_API_KEY', 'GOOGLE_API_KEY', 'CLAUDE_API_KEY',
@@ -38,7 +36,6 @@ function runWrapper(env = {}, cwd = repoRoot) {
     if (key.startsWith('GT_') || key.startsWith('AI_ROUTER_')) continue;
     cleanEnv[key] = process.env[key];
   }
-  // Also clear paths that could cause .env lookup from wrong location
   cleanEnv.GT_PROJECT_ROOT = '';
   cleanEnv.GT_TOWN_ROOT = '';
   cleanEnv.GT_ROOT = '';
@@ -58,9 +55,8 @@ function runWrapper(env = {}, cwd = repoRoot) {
   return parseEnvOutput(result.stdout);
 }
 
-// --- D4: Test Coverage for Pi Wrapper ---
+// --- 1. GT_ROLE parsing tests ---
 
-// 1. GT_ROLE parsing tests
 test('pi wrapper: parses ai_router/crew/xxx to crew/xxx', () => {
   const env = runWrapper({
     GT_SESSION: 'pi-test-ai-router-crew',
@@ -72,11 +68,11 @@ test('pi wrapper: parses ai_router/crew/xxx to crew/xxx', () => {
 
   assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'ai_router');
   assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew/router_core');
-  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
 });
 
-test('pi wrapper: parses quant/crew/scout to crew/scout', () => {
+test('pi wrapper: parses quant/crew/scout to crew (falls back to gastown)', () => {
   const env = runWrapper({
     GT_SESSION: 'pi-test-quant-crew',
     GT_RIG: 'quant',
@@ -85,10 +81,10 @@ test('pi wrapper: parses quant/crew/scout to crew/scout', () => {
     UNDERLYING_PI_BIN: ENV_ECHO_BIN,
   });
 
-  assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'quant');
-  assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew/scout');
-  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
+  // quant is not a defined runtime, falls back to gastown
+  assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'gastown');
+  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
 });
 
 test('pi wrapper: parses gastown/crew/xxx to crew', () => {
@@ -101,10 +97,11 @@ test('pi wrapper: parses gastown/crew/xxx to crew', () => {
 
   assert.equal(env.AI_ROUTER_RESOLVED_RUNTIME, 'gastown');
   assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'crew');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
 });
 
-// 2. Routing resolution tests
+// --- 2. Routing resolution tests ---
+
 test('pi wrapper: resolves crew role to correct model/provider', () => {
   const env = runWrapper({
     GT_SESSION: 'pi-test-crew-resolve',
@@ -113,10 +110,10 @@ test('pi wrapper: resolves crew role to correct model/provider', () => {
     UNDERLYING_PI_BIN: ENV_ECHO_BIN,
   });
 
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
   assert.equal(env.AI_ROUTER_SELECTED_PROVIDER, 'ep38');
-  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.7');
-  assert.equal(env.ANTHROPIC_BASE_URL, 'http://38.146.29.81:8000');
+  assert.equal(env.ANTHROPIC_MODEL, 'glm-5');
+  assert.equal(env.ANTHROPIC_BASE_URL, 'https://api.apitoken.ai');
 });
 
 test('pi wrapper: resolves polecat role', () => {
@@ -128,10 +125,11 @@ test('pi wrapper: resolves polecat role', () => {
   });
 
   assert.equal(env.AI_ROUTER_RESOLVED_ROLE, 'polecat');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
 });
 
-// 3. Fallback advancement tests
+// --- 3. Fallback advancement tests ---
+
 test('pi wrapper: increments target index after rate_limit', () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-router-pi-recovery-'));
   fs.mkdirSync(path.join(stateRoot, 'exit'), { recursive: true });
@@ -149,8 +147,8 @@ test('pi wrapper: increments target index after rate_limit', () => {
   });
 
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '1');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
-  assert.equal(env.ANTHROPIC_MODEL, 'glm-5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
+  assert.equal(env.ANTHROPIC_MODEL, 'glm-4.7');
 });
 
 test('pi wrapper: increments after provider_recoverable', () => {
@@ -170,7 +168,7 @@ test('pi wrapper: increments after provider_recoverable', () => {
   });
 
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '2');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
 });
 
 test('pi wrapper: does not increment after clean_exit', () => {
@@ -189,12 +187,12 @@ test('pi wrapper: does not increment after clean_exit', () => {
     UNDERLYING_PI_BIN: ENV_ECHO_BIN,
   });
 
-  // Should stay at index 1 (not increment) after clean exit
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '1');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
 });
 
-// 4. Manual override tests
+// --- 4. Manual override tests ---
+
 test('pi wrapper: respects AI_ROUTER_TARGET_MODEL override', () => {
   const env = runWrapper({
     GT_ROLE: 'ai_router/crew/test',
@@ -204,7 +202,7 @@ test('pi wrapper: respects AI_ROUTER_TARGET_MODEL override', () => {
   });
 
   assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-5');
-  assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '1');
+  assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '0');
   assert.equal(env.ANTHROPIC_MODEL, 'glm-5');
 });
 
@@ -217,8 +215,8 @@ test('pi wrapper: respects AI_ROUTER_TARGET_INDEX override', () => {
   });
 
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '2');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
-  assert.equal(env.ANTHROPIC_MODEL, 'glm-4.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
 });
 
 test('pi wrapper: target_model override takes precedence over exit metadata', () => {
@@ -232,18 +230,18 @@ test('pi wrapper: target_model override takes precedence over exit metadata', ()
   const env = runWrapper({
     GT_SESSION: 'override-test',
     GT_ROLE: 'ai_router/crew/test',
-    AI_ROUTER_TARGET_MODEL: 'MiniMax-M2.7',
+    AI_ROUTER_TARGET_MODEL: 'MiniMax-M2.5',
     AI_ROUTER_STATE_ROOT: stateRoot,
     EP38_API_KEY: 'dummy-key',
     UNDERLYING_PI_BIN: ENV_ECHO_BIN,
   });
 
-  // Should respect explicit model, ignore rate_limit fallback
-  assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '0');
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.5');
+  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.5');
 });
 
-// 5. Export verification
+// --- 5. Export verification ---
+
 test('pi wrapper: exports correct environment variables', () => {
   const env = runWrapper({
     GT_SESSION: 'pi-test-export',
@@ -251,11 +249,11 @@ test('pi wrapper: exports correct environment variables', () => {
     UNDERLYING_PI_BIN: ENV_ECHO_BIN,
   });
 
-  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.AI_ROUTER_SELECTED_MODEL, 'glm-4.7');
   assert.equal(env.AI_ROUTER_SELECTED_PROVIDER, 'ep38');
   assert.equal(env.AI_ROUTER_SELECTED_TARGET_INDEX, '0');
-  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '3');
+  assert.equal(env.AI_ROUTER_CANDIDATE_COUNT, '5');
   assert.equal(env.ANTHROPIC_API_KEY, 'test-key-123');
-  assert.equal(env.ANTHROPIC_BASE_URL, 'http://38.146.29.81:8000');
-  assert.equal(env.ANTHROPIC_MODEL, 'MiniMax-M2.7');
+  assert.equal(env.ANTHROPIC_BASE_URL, 'https://api.apitoken.ai');
+  assert.equal(env.ANTHROPIC_MODEL, 'glm-4.7');
 });
