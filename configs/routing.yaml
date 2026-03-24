@@ -1,253 +1,241 @@
 # Routing configuration for ai-router
 # Maps runtime + role combinations to model chains
+#
+# 2026-03-18: glm-5 promoted to primary after overnight data showed
+# MiniMax-M2.5 failing 10/12 sessions (rate_limit + transport errors).
+# Added role-based differentiation and expanded chains to 5 candidates.
 
 routes:
   gastown:
     default:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Default fallback for unknown gastown roles
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Default fallback chain (glm-5 primary, stable)
       runtime: gastown
 
-    # Town-level roles stay on shared gastown runtime
+    # Town-level roles — need strong reasoning
     mayor:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
+        - MiniMax-M2.5
         - glm-4.7
-      description: Mayor uses primary MiniMax chain
+        - kimi-k2.5
+        - glm-4
+      description: Mayor needs strong reasoning, glm-5 primary
       runtime: gastown
 
     deacon:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Deacon uses primary MiniMax chain
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Deacon uses glm-5 primary
       runtime: gastown
 
-  coworker:
-    default:
+    # Crew roles — differentiated by workload type
+    crew:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Default fallback for unknown coworker roles
-      runtime: coworker
-
-    boot:
-      modelChain:
-        - MiniMax-M2.7
-        - glm-5
-        - glm-4.7
-      description: Boot uses primary MiniMax chain
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Generic crew fallback chain
       runtime: gastown
 
-    witness:
+    crew/builder:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
+        - MiniMax-M2.5
         - glm-4.7
-      description: Witness uses primary MiniMax chain
+        - kimi-k2.5
+        - glm-4
+      description: Builder needs strong coding, glm-5 then MiniMax
       runtime: gastown
-
-    refinery:
-      modelChain:
-        - MiniMax-M2.7
-        - glm-5
-        - glm-4.7
-      description: Refinery uses primary MiniMax chain
-      runtime: gastown
-
-    polecat:
-      modelChain:
-        - MiniMax-M2.7
-        - glm-5
-        - glm-4.7
-      description: Default polecat uses primary MiniMax chain
-      runtime: gastown
-
-    # Explicit crew role routes for coworker rig (P0 enforcement)
-    crew/coworker:
-      modelChain:
-        - MiniMax-M2.7
-        - glm-5
-        - glm-4.7
-      description: Coworker crew coordination
-      runtime: coworker
-
-    crew/coordinator:
-      modelChain:
-        - MiniMax-M2.7
-        - glm-5
-        - glm-4.7
-      description: Coordinator for async ChatBox repair
-      runtime: coworker
-
-    crew/backend:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Backend implementation crew
-      runtime: coworker
-
-    crew/frontend:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Frontend implementation crew
-      runtime: coworker
-
-    crew/orchestrator_core:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Orchestrator core crew (runtime/scheduler)
-      runtime: coworker
-
-    crew/web_console:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Web console UI crew
-      runtime: coworker
-
-    crew/harness:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Harness/E2E test crew
-      runtime: coworker
-
-    crew/integration:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Integration testing crew
-      runtime: coworker
-
-    crew/sandbox_schema:
-      modelChain:
-        - glm-4.7
-        - glm-5
-        - MiniMax-M2.7
-      description: Schema validation crew
-      runtime: coworker
-
-  # Quant strategy research rig
-  quant:
-    runtime: quant
-    inherits: gastown
 
     crew/scout:
       modelChain:
         - glm-4.7
         - glm-5
-        - MiniMax-M2.7
-      description: Scout researches strategy variants, GitHub, papers
-      runtime: quant
-
-    crew/builder:
-      modelChain:
-        - glm-5
-        - MiniMax-M2.7
-        - glm-4.7
-      description: Builder implements strategy code and tests
-      runtime: quant
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Scout is research-only, cheaper model first
+      runtime: gastown
 
     crew/tester:
       modelChain:
         - glm-4.7
         - glm-5
-        - MiniMax-M2.7
-      description: Tester runs backtests and evaluates variants
-      runtime: quant
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Tester is backtest-only, cheaper model first
+      runtime: gastown
+
+    boot:
+      modelChain:
+        - glm-5
+        - glm-4.7
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Boot uses glm-5 primary
+      runtime: gastown
 
     witness:
       modelChain:
-        - MiniMax-M2.7
-        - glm-5
         - glm-4.7
-      description: Quant witness for polecat lifecycle
-      runtime: quant
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Witness is lightweight, cheaper model first
+      runtime: gastown
 
     refinery:
       modelChain:
-        - MiniMax-M2.7
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Refinery is lightweight, cheaper model first
+      runtime: gastown
+
+    polecat:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Polecat is lightweight, cheaper model first
+      runtime: gastown
+
+  coworker:
+    runtime: coworker
+    inherits: gastown
+
+    default:
+      modelChain:
         - glm-5
         - glm-4.7
-      description: Quant refinery for merge queue
-      runtime: quant
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Default coworker chain
+      runtime: coworker
+
+    boot:
+      modelChain:
+        - glm-5
+        - glm-4.7
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Coworker boot
+      runtime: gastown
+
+    witness:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Coworker witness
+      runtime: gastown
+
+    refinery:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Coworker refinery
+      runtime: gastown
+
+    polecat:
+      modelChain:
+        - glm-4.7
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Coworker polecat
+      runtime: gastown
 
   # Rig-specific routes (inherited from gastown runtime)
   ai_router:
     runtime: ai_router
     inherits: gastown
 
-    # Crew roles in ai_router rig
     crew/router_core:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
+        - MiniMax-M2.5
         - glm-4.7
-      description: Router core crew uses primary MiniMax chain
+        - kimi-k2.5
+        - glm-4
+      description: Router core — needs strong reasoning
       runtime: ai_router
 
     crew/runtime_recovery:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Runtime recovery crew uses primary MiniMax chain
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Runtime recovery crew
       runtime: ai_router
 
     crew/infra_sre:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Infra SRE crew uses primary MiniMax chain
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Infra SRE crew
       runtime: ai_router
 
     crew/pi_adapter:
       modelChain:
-        - MiniMax-M2.7
         - glm-5
         - glm-4.7
-      description: Pi adapter crew for P2 integration work
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Pi adapter crew
       runtime: ai_router
 
     witness:
       modelChain:
-        - MiniMax-M2.7
-        - glm-5
         - glm-4.7
-      description: Ai router witness uses primary MiniMax chain
+        - glm-5
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Ai router witness
       runtime: ai_router
 
     refinery:
       modelChain:
-        - MiniMax-M2.7
-        - glm-5
         - glm-4.7
-      description: Ai router refinery uses primary MiniMax chain
-      runtime: ai_router
-
-    # Monitoring roles (L1-L5 crew)
-    monitor:
-      modelChain:
-        - MiniMax-M2.7
         - glm-5
-        - glm-4.7
-      description: Monitor role for five-layer monitoring architecture
+        - MiniMax-M2.5
+        - kimi-k2.5
+        - glm-4
+      description: Ai router refinery
       runtime: ai_router
 
   claude:
@@ -256,8 +244,10 @@ routes:
   # Default fallback for unknown roles
   default:
     modelChain:
-      - MiniMax-M2.7
       - glm-5
       - glm-4.7
+      - MiniMax-M2.5
+      - kimi-k2.5
+      - glm-4
     description: Default route for unknown runtime/role
     runtime: gastown

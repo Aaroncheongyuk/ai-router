@@ -7,7 +7,7 @@ providers:
     name: EP38
     type: openai-compatible
     protocol: anthropic-messages
-    baseUrl: http://38.146.29.81:8000
+    baseUrl: https://api.apitoken.ai
     apiKeyEnv: EP38_API_KEY
     headers:
       # No custom headers needed for EP38
