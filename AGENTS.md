@@ -13,3 +13,4 @@ Short version:
 - keep routing separate from orchestration
 - keep P0 minimal and Gastown-first
 - avoid framework lock-in
+- **resolve CLI is internal — integrate through wrappers only** (see `docs/INTEGRATION.md`)

@@ -37,6 +37,14 @@ Do **not** expand P0 into:
 - `docs/p0-plan.md`
 - `docs/roadmap.md`
 
+## Integration boundary (Iron Rule)
+
+**The `resolve` CLI is an internal implementation detail. All external projects MUST integrate through a wrapper (`wrappers/claude-38`, `wrappers/pi`, etc.), never by calling `resolve` directly.**
+
+The wrapper is the enforcement layer for fallback logic, exit metadata, and automatic recovery. Bypassing it means no fallback on provider failure.
+
+See `docs/INTEGRATION.md` for the full contract.
+
 ## Working rules
 
 - Keep files small and explicit.

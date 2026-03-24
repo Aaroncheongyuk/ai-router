@@ -228,53 +228,256 @@ function resolveRoute(runtime, role, config) {
   };
 }
 
-function main() {
-  const argv = process.argv.slice(2);
-  if (argv.length === 0) {
-    console.error('Usage: ai-router <command> [options]');
-    console.error('Commands:');
-    console.error('  resolve --runtime <runtime> --role <role>');
-    process.exit(1);
-  }
-
-  const command = argv[0];
-  if (command !== 'resolve') {
-    console.error(`Unknown command: ${command}`);
-    process.exit(1);
-  }
-
-  const parsed = parseArgs({
-    args: argv.slice(1),
-    options: {
-      runtime: { type: 'string' },
-      role: { type: 'string' },
-      help: { type: 'boolean', default: false },
-    },
-    allowPositionals: false,
-  });
-
-  if (parsed.values.help) {
-    console.error('Usage: resolve --runtime <runtime> --role <role>');
-    process.exit(0);
-  }
-
-  const runtime = parsed.values.runtime;
-  const role = parsed.values.role;
-  if (!runtime || !role) {
-    console.error('Error: --runtime and --role are required');
-    process.exit(1);
-  }
-
-  const configDir = process.env.AI_ROUTER_CONFIG_DIR || DEFAULT_CONFIG_DIR;
-  const config = {
+function loadAllConfigs(configDir) {
+  return {
     providers: loadJsonConfig(configDir, 'providers.json'),
     models: loadJsonConfig(configDir, 'models.json'),
     routing: loadJsonConfig(configDir, 'routing.json'),
     fallbacks: loadJsonConfig(configDir, 'fallbacks.json'),
   };
+}
 
-  const result = resolveRoute(runtime, role, config);
-  process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+function validateRoute(runtime, role, config) {
+  const checks = [];
+  const pass = (name, detail) => checks.push({ status: 'pass', name, detail });
+  const fail = (name, detail) => checks.push({ status: 'fail', name, detail });
+  const warn = (name, detail) => checks.push({ status: 'warn', name, detail });
+
+  const routes = unwrapMap(config.routing, 'routes');
+  const models = unwrapMap(config.models, 'models');
+  const providers = unwrapMap(config.providers, 'providers');
+
+  // Check 1: Route exists
+  let resolved;
+  try {
+    resolved = resolveRoute(runtime, role, config);
+    pass('route_exists', `${runtime}/${role} → model=${resolved.model}, provider=${resolved.provider}`);
+  } catch {
+    fail('route_exists', `No route found for runtime=${runtime}, role=${role}`);
+    return { runtime, role, checks, score: 0 };
+  }
+
+  // Check 2: Fallback chain depth
+  const chainLen = 1 + resolved.fallbacks.length;
+  if (chainLen >= 3) {
+    pass('fallback_depth', `Chain has ${chainLen} candidates`);
+  } else if (chainLen === 2) {
+    warn('fallback_depth', `Chain has only ${chainLen} candidates (recommend >= 3)`);
+  } else {
+    fail('fallback_depth', `Chain has only ${chainLen} candidate (no fallback!)`);
+  }
+
+  // Check 3: All models in chain exist in models.json
+  const allModels = [resolved.model, ...resolved.fallbacks];
+  const missingModels = allModels.filter((m) => !models[m]);
+  if (missingModels.length === 0) {
+    pass('models_exist', `All ${allModels.length} models found in models.json`);
+  } else {
+    fail('models_exist', `Missing from models.json: ${missingModels.join(', ')}`);
+  }
+
+  // Check 4: All providers in chain exist in providers.json
+  const providerNames = new Set();
+  providerNames.add(resolved.provider);
+  for (const fb of resolved.resolvedFallbacks) {
+    providerNames.add(fb.provider);
+  }
+  const missingProviders = [...providerNames].filter((p) => !providers[p]);
+  if (missingProviders.length === 0) {
+    pass('providers_exist', `All providers found: ${[...providerNames].join(', ')}`);
+  } else {
+    fail('providers_exist', `Missing from providers.json: ${missingProviders.join(', ')}`);
+  }
+
+  // Check 5: Auth env vars referenced
+  const envVars = new Set();
+  envVars.add(resolved.auth.env);
+  for (const fb of resolved.resolvedFallbacks) {
+    envVars.add(fb.auth.env);
+  }
+  for (const envVar of envVars) {
+    if (process.env[envVar]) {
+      pass('auth_env', `${envVar} is set`);
+    } else {
+      warn('auth_env', `${envVar} is not set in current environment`);
+    }
+  }
+
+  // Check 6: No duplicate models in chain
+  const seen = new Set();
+  const duplicates = [];
+  for (const m of allModels) {
+    if (seen.has(m)) duplicates.push(m);
+    seen.add(m);
+  }
+  if (duplicates.length === 0) {
+    pass('no_duplicates', 'No duplicate models in chain');
+  } else {
+    warn('no_duplicates', `Duplicate models in chain: ${duplicates.join(', ')}`);
+  }
+
+  // Check 7: Provider diversity (warn if all same provider)
+  if (providerNames.size >= 2) {
+    pass('provider_diversity', `${providerNames.size} distinct providers for resilience`);
+  } else {
+    warn('provider_diversity', `All candidates use same provider (${[...providerNames][0]}). Single point of failure.`);
+  }
+
+  // Check 8: wireModel set for all candidates
+  const missingWireModel = allModels.filter((m) => models[m] && !models[m].wireModel);
+  if (missingWireModel.length === 0) {
+    pass('wire_model', 'All models have wireModel defined');
+  } else {
+    warn('wire_model', `Models missing wireModel (will use name as fallback): ${missingWireModel.join(', ')}`);
+  }
+
+  const passCount = checks.filter((c) => c.status === 'pass').length;
+  const score = Math.round((passCount / checks.length) * 100);
+
+  return { runtime, role, checks, score };
+}
+
+function validateAll(config) {
+  const routes = unwrapMap(config.routing, 'routes');
+  const results = [];
+
+  for (const [runtimeName, runtimeConfig] of Object.entries(routes)) {
+    if (runtimeName === 'default') continue;
+    if (typeof runtimeConfig !== 'object' || Array.isArray(runtimeConfig)) continue;
+
+    for (const [roleName, roleConfig] of Object.entries(runtimeConfig)) {
+      if (['runtime', 'inherits'].includes(roleName)) continue;
+      if (typeof roleConfig !== 'object' || Array.isArray(roleConfig)) continue;
+      if (!roleConfig.modelChain) continue;
+
+      results.push(validateRoute(runtimeName, roleName, config));
+    }
+  }
+
+  return results;
+}
+
+function formatValidationOutput(results) {
+  const lines = [];
+  let totalPass = 0;
+  let totalFail = 0;
+  let totalWarn = 0;
+
+  for (const r of results) {
+    lines.push(`\n── ${r.runtime}/${r.role} (score: ${r.score}%) ──`);
+    for (const c of r.checks) {
+      const icon = c.status === 'pass' ? '✅' : c.status === 'fail' ? '❌' : '⚠️';
+      lines.push(`  ${icon} ${c.name}: ${c.detail}`);
+      if (c.status === 'pass') totalPass++;
+      else if (c.status === 'fail') totalFail++;
+      else totalWarn++;
+    }
+  }
+
+  lines.push(`\n── Summary ──`);
+  lines.push(`  Routes validated: ${results.length}`);
+  lines.push(`  Checks: ${totalPass} pass, ${totalWarn} warn, ${totalFail} fail`);
+
+  const overallScore = results.length > 0
+    ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
+    : 0;
+  lines.push(`  Overall score: ${overallScore}%`);
+
+  if (totalFail > 0) {
+    lines.push(`\n  ❌ VALIDATION FAILED — ${totalFail} check(s) failed`);
+  } else if (totalWarn > 0) {
+    lines.push(`\n  ⚠️  VALIDATION PASSED with ${totalWarn} warning(s)`);
+  } else {
+    lines.push(`\n  ✅ VALIDATION PASSED — all checks green`);
+  }
+
+  return lines.join('\n');
+}
+
+function main() {
+  const argv = process.argv.slice(2);
+  if (argv.length === 0) {
+    console.error('Usage: ai-router <command> [options]');
+    console.error('Commands:');
+    console.error('  resolve  --runtime <runtime> --role <role>');
+    console.error('  validate [--runtime <runtime> --role <role>] [--json] [--all]');
+    process.exit(1);
+  }
+
+  const command = argv[0];
+  const configDir = process.env.AI_ROUTER_CONFIG_DIR || DEFAULT_CONFIG_DIR;
+  const config = loadAllConfigs(configDir);
+
+  if (command === 'resolve') {
+    const parsed = parseArgs({
+      args: argv.slice(1),
+      options: {
+        runtime: { type: 'string' },
+        role: { type: 'string' },
+        help: { type: 'boolean', default: false },
+      },
+      allowPositionals: false,
+    });
+
+    if (parsed.values.help) {
+      console.error('Usage: resolve --runtime <runtime> --role <role>');
+      process.exit(0);
+    }
+
+    const runtime = parsed.values.runtime;
+    const role = parsed.values.role;
+    if (!runtime || !role) {
+      console.error('Error: --runtime and --role are required');
+      process.exit(1);
+    }
+
+    const result = resolveRoute(runtime, role, config);
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+
+  } else if (command === 'validate') {
+    const parsed = parseArgs({
+      args: argv.slice(1),
+      options: {
+        runtime: { type: 'string' },
+        role: { type: 'string' },
+        all: { type: 'boolean', default: false },
+        json: { type: 'boolean', default: false },
+        help: { type: 'boolean', default: false },
+      },
+      allowPositionals: false,
+    });
+
+    if (parsed.values.help) {
+      console.error('Usage: validate [--runtime <runtime> --role <role>] [--all] [--json]');
+      console.error('  --all: validate all defined routes');
+      console.error('  --json: output as JSON');
+      process.exit(0);
+    }
+
+    let results;
+    if (parsed.values.all || (!parsed.values.runtime && !parsed.values.role)) {
+      results = validateAll(config);
+    } else {
+      if (!parsed.values.runtime || !parsed.values.role) {
+        console.error('Error: both --runtime and --role are required (or use --all)');
+        process.exit(1);
+      }
+      results = [validateRoute(parsed.values.runtime, parsed.values.role, config)];
+    }
+
+    if (parsed.values.json) {
+      process.stdout.write(JSON.stringify(results, null, 2) + '\n');
+    } else {
+      process.stdout.write(formatValidationOutput(results) + '\n');
+    }
+
+    const hasFail = results.some((r) => r.checks.some((c) => c.status === 'fail'));
+    process.exit(hasFail ? 1 : 0);
+
+  } else {
+    console.error(`Unknown command: ${command}`);
+    process.exit(1);
+  }
 }
 
 main();
